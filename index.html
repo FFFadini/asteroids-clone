@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clone Asteroid - Final</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div id="placar-container" class="fixed-top p-3 d-flex justify-content-between">
+        <div id="placar-pontos">PONTOS: 0000</div>
+        <div id="placar-nivel">NÍVEL: 1</div>
+    </div>
+
+    <div id="tela-gameover" class="d-none position-fixed top-0 start-0 w-100 h-100 bg-dark bg-opacity-75 d-flex flex-column justify-content-center align-items-center text-white" style="z-index: 2000;">
+        <h1 class="display-1 fw-bold text-danger mb-4">GAME OVER</h1>
+        <h3 class="mb-4">Sua Pontuação Final: <span id="pontos-final">0</span></h3>
+        <button class="btn btn-danger btn-lg px-5" onclick="reiniciarJogo()">TENTAR DE NOVO</button>
+    </div>
+
+    <div id="tela-jogo">
+        <div id="nave">
+            <svg width="50" height="50" viewBox="0 0 300 300">
+                <polygon points="150,10 250,240 50,240" class="nave" />
+            </svg>
+        </div>
+        <div id="container-meteoros"></div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,133 @@
+body {
+    background-color: #000;
+    overflow: hidden;
+    margin: 0;
+    height: 100vh;
+    font-family: 'Courier New', Courier, monospace; /* Fonte estilo máquina de escrever */
+    user-select: none; /* Impede selecionar texto ao clicar muito rápido */
+}
+
+/* Placar Estilo Retro */
+#placar-container {
+    color: #fff;
+    font-size: 24px;
+    font-weight: bold;
+    text-shadow: 0 0 5px #fff;
+    pointer-events: none; /* O mouse atravessa o placar */
+    z-index: 100;
+}
+
+.nave {
+    fill: transparent;
+    stroke: #0f0;
+    stroke-width: 15px;
+}
+
+#nave {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 50px;
+    height: 50px;
+    z-index: 10;
+}
+
+.meteoro {
+    position: absolute;
+    top: 0; 
+    left: 0;
+    will-change: transform; 
+}
+
+.laser {
+    position: absolute;
+    width: 4px;
+    height: 12px;
+    background-color: #ff0000;
+    box-shadow: 0 0 10px #ff0000, 0 0 20px #ff0000;
+    border-radius: 2px;
+    will-change: transform;
+}
+
+/* Efeito de Partícula (Explosão) */
+.particula {
+    position: absolute;
+    width: 4px;  /* Pequenos quadrados */
+    height: 4px;
+    /* will-change ajuda o navegador a processar melhor */
+    will-change: transform, opacity; 
+}
+
+/* Removemos a cor fixa da classe .linha-neon para o JS poder controlar */
+.linha-neon {
+    fill: transparent;
+    stroke-width: 15px;
+    will-change: stroke; /* Otimização para troca de cor */
+    transition: stroke 0.1s; /* Efeito suave ao levar dano */
+}
+
+/* Efeito de Flash (quando o meteoro toma tiro) */
+.flash-dano {
+    stroke: #ffffff !important; /* Fica branco quando acerta */
+}
+
+/* Configuração base do placar para animar suavemente */
+#placar-nivel {
+    transition: all 0.5s ease; /* Animação suave na ida e na volta */
+    display: inline-block; /* Necessário para o transform funcionar */
+}
+
+/* A classe que será injetada pelo JS */
+.efeito-levelup {
+    color: #ffea00 !important; /* Amarelo intenso */
+    text-shadow: 
+        0 0 10px #ffea00, 
+        0 0 20px #ffea00, 
+        0 0 40px #ffea00; /* Camadas de brilho neon */
+    transform: scale(1.2);
+}
+
+/* --- POWER UPS --- */
+.powerup {
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%; /* Faz virar bolinha */
+    z-index: 5;
+    animation: piscar 0.5s infinite alternate; /* Efeito Neon Piscando */
+}
+
+@keyframes piscar {
+    from { opacity: 0.6; transform: scale(0.9); box-shadow: 0 0 5px currentColor; }
+    to { opacity: 1; transform: scale(1.1); box-shadow: 0 0 20px currentColor; }
+}
+
+/* Classes para mudar a cor da nave quando pega o item */
+.nave-padrao polygon { stroke: #0f0; } /* Verde Original */
+.nave-branca polygon { stroke: #fff !important; filter: drop-shadow(0 0 10px #fff); }
+.nave-azul polygon { stroke: #00f !important; filter: drop-shadow(0 0 10px #00f); }
+.nave-vermelha polygon { stroke: #f00 !important; filter: drop-shadow(0 0 10px #f00); }
+
+/* Explosão nuclear (Tiro Vermelho) */
+.onda-choque {
+    position: absolute;
+    border: 2px solid red;
+    border-radius: 50%;
+    background-color: rgba(255, 0, 0, 0.3);
+    transform: translate(-50%, -50%); /* Centraliza */
+    pointer-events: none;
+    z-index: 20;
+}
+
+/* Animação de Alerta (Piscar Rápido) */
+@keyframes piscar-alerta {
+    0% { opacity: 1; }
+    50% { opacity: 0.2; }
+    100% { opacity: 1; }
+}
+
+/* Quando esta classe for adicionada, a nave (polygon) começa a piscar */
+.alerta-acabando polygon {
+    animation: piscar-alerta 0.15s infinite; /* Pisca bem rápido */
+}
