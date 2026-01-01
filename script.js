@@ -53,6 +53,8 @@ let nivel = 1;
 let jogoRodando = true;
 let loopId;
 let ultimoSpawn = 0;
+// NOVO: Variável para controlar o tempo do drop
+let ultimoTempoDrop = 0;
 
 // CONTROLE DE TIRO
 let modoTiroAtual = 'padrao';
@@ -103,9 +105,24 @@ function criarExplosao(x, y, cor, escala = 1) {
    POWER-UPS
    ========================================== */
 function droparPowerup(x, y) {
+    // 1. Regra de Nível (só após nível 2)
     if (nivel < 2) return;
+
+    // 2. O Jogador já está usando um poder? Se sim, não dropa.
     if (modoTiroAtual !== 'padrao') return; 
 
+    // 3. NOVA REGRA: Já tem uma bolinha caindo na tela?
+    // Se a lista de powerups ativos não estiver vazia, cancela. 
+    // Isso garante que só tenha 1 item na tela por vez.
+    if (powerupsAtivos.length > 0) return;
+
+    // 4. NOVA REGRA: Cooldown (Tempo de Espera)
+    // Pega o horário atual em milissegundos
+    const tempoAtual = Date.now();
+    // Se passou menos de 5 segundos (5000ms) desde o último drop, cancela.
+    if (tempoAtual - ultimoTempoDrop < 5000) return;
+
+    // --- SORTEIO ---
     const sorteio = Math.random();
     let tipoDrop = null;
 
@@ -119,7 +136,9 @@ function droparPowerup(x, y) {
         el.className = 'powerup';
         el.style.backgroundColor = dados.cor;
         el.style.color = dados.cor;
-        el.style.left = x + 'px'; el.style.top = y + 'px';
+        
+        el.style.left = x + 'px'; 
+        el.style.top = y + 'px';
         document.body.appendChild(el);
 
         const centroX = window.innerWidth / 2;
@@ -133,27 +152,50 @@ function droparPowerup(x, y) {
             vy: Math.sin(angulo) * velocidade,
             tipo: tipoDrop, dados: dados
         });
+
+        // ATUALIZA O RELÓGIO: Marca que acabou de cair um item
+        ultimoTempoDrop = Date.now();
     }
 }
-
 function ativarPowerup(tipo) {
     const dados = UPGRADES[tipo];
     const naveDiv = document.getElementById('nave');
+    const corpo = document.body; // Referência à tela inteira
+
+    // 1. Limpeza de timers anteriores
     if (timerPowerup) clearTimeout(timerPowerup);
     if (timerAlerta) clearTimeout(timerAlerta);
 
+    // 2. Aplica Power-up na NAVE
     modoTiroAtual = tipo;
     naveDiv.className = ''; 
     naveDiv.classList.add(dados.classeNave);
 
+    // 3. Aplica Power-up na BORDA DA TELA (NOVO)
+    // Injeta a cor do powerup na variável CSS que criamos
+    corpo.style.setProperty('--cor-borda', dados.cor);
+    corpo.classList.remove('alerta-borda'); // Garante que não está piscando
+    corpo.classList.add('borda-ativa');     // Liga a luz da borda
+
+    // 4. Configura o Alerta (Piscar)
     const tempoParaAlerta = dados.tempo > 1500 ? dados.tempo - 1500 : 0;
+    
     timerAlerta = setTimeout(() => {
-        naveDiv.classList.add('alerta-acabando');
+        naveDiv.classList.add('alerta-acabando'); // Nave pisca
+        corpo.classList.add('alerta-borda');      // Tela pisca
     }, tempoParaAlerta);
 
+    // 5. Configura o Fim do Efeito
     timerPowerup = setTimeout(() => {
         modoTiroAtual = 'padrao';
+        
+        // Reseta Nave
         naveDiv.className = 'nave-padrao'; 
+        
+        // Reseta Borda da Tela (NOVO)
+        corpo.classList.remove('borda-ativa', 'alerta-borda');
+        corpo.style.setProperty('--cor-borda', 'transparent');
+
         timerPowerup = null;
         timerAlerta = null;
     }, dados.tempo);
@@ -421,20 +463,45 @@ function gameOver() {
 }
 
 function reiniciarJogo() {
-    pontuacao = 0; nivel = 1; ultimoSpawn = 0; jogoRodando = true; modoTiroAtual = 'padrao';
+    cancelAnimationFrame(loopId);
+
+    pontuacao = 0; 
+    nivel = 1; 
+    ultimoSpawn = 0; 
+    ultimoTempoDrop = 0; 
+    
+    jogoRodando = true; 
+    modoTiroAtual = 'padrao';
     mousePressionado = false;
+    
+    // Limpeza de Timers
     if (timerPowerup) clearTimeout(timerPowerup);
-    if (timerAlerta) clearTimeout(timerAlerta);
-    timerPowerup = null; timerAlerta = null;
+    if (timerAlerta) clearTimeout(timerAlerta); 
+    timerPowerup = null;
+    timerAlerta = null;
+    
+    // Reset Visual (Placar e Nave)
     atualizarPlacar();
     document.getElementById('nave').style.opacity = '1';
     document.getElementById('nave').className = 'nave-padrao';
+    
+    // --- LIMPEZA DA BORDA DA TELA (NOVO) ---
+    document.body.classList.remove('borda-ativa', 'alerta-borda');
+    document.body.style.setProperty('--cor-borda', 'transparent');
+    
+    // Limpeza de Objetos
     meteorosAtivos.forEach(m => m.elemento.remove());
     lasersAtivos.forEach(l => l.elemento.remove());
     particulasAtivas.forEach(p => p.elemento.remove());
     powerupsAtivos.forEach(p => p.elemento.remove());
-    meteorosAtivos = []; lasersAtivos = []; particulasAtivas = []; powerupsAtivos = [];
+    
+    meteorosAtivos = []; 
+    lasersAtivos = []; 
+    particulasAtivas = []; 
+    powerupsAtivos = [];
+    
     document.getElementById('tela-gameover').classList.add('d-none');
+    
     gameLoop(0);
 }
 

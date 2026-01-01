@@ -130,3 +130,31 @@ body {
 .alerta-acabando polygon {
     animation: piscar-alerta 0.15s infinite; /* Pisca bem rápido */
 }
+
+body {
+    /* Define uma variável de cor vazia por padrão */
+    --cor-borda: transparent;
+    transition: box-shadow 0.5s ease; /* Entrada suave da cor */
+}
+
+/* Quando esta classe estiver ativa, a borda aparece */
+body.borda-ativa {
+    /* inset = sombra interna (cria o efeito de borda brilhante) */
+    box-shadow: inset 0 0 50px var(--cor-borda);
+}
+
+/* Quando o tempo estiver acabando, a borda pulsa */
+body.alerta-borda {
+    animation: piscar-tela 0.25s infinite alternate;
+}
+
+@keyframes piscar-tela {
+    from {
+        box-shadow: inset 0 0 50px var(--cor-borda);
+        opacity: 1;
+    }
+    to {
+        box-shadow: inset 0 0 10px var(--cor-borda); /* Borda diminui */
+        opacity: 0.5;
+    }
+}
