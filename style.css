@@ -59,7 +59,6 @@ body {
     will-change: transform, opacity; 
 }
 
-/* Removemos a cor fixa da classe .linha-neon para o JS poder controlar */
 .linha-neon {
     fill: transparent;
     stroke-width: 15px;

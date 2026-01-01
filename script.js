@@ -2,21 +2,31 @@
    CONFIGURAÇÕES E DADOS
    ========================================== */
 const TIPOS_METEOROS = {
-    'verde':    { vida: 1, cor: '#00ff00', pontos: 100, fragmenta: false },
-    'azul':     { vida: 2, cor: '#0000ff', pontos: 200, fragmenta: false },
-    'vermelho': { vida: 4, cor: '#ff0000', pontos: 500, fragmenta: false },
-    'roxo':     { vida: 1, cor: '#800080', pontos: 300, fragmenta: true }
-};
-// criação de niveis
-const CONFIG_NIVEIS = {
-    1: { maxMeteoros: 3,  spawnRate: 2000, velocidade: .5, tipos: ['verde'] },
-    2: { maxMeteoros: 5,  spawnRate: 1800, velocidade: .5, tipos: ['verde', 'azul'] },
-    3: { maxMeteoros: 7,  spawnRate: 1500, velocidade: .5, tipos: ['verde', 'azul', 'roxo'] },
-    4: { maxMeteoros: 10, spawnRate: 1200, velocidade: .3, tipos: ['azul', 'vermelho', 'roxo'] },
-    'infinito': { maxMeteoros: 15, spawnRate: 800, velocidade: 1, tipos: ['verde','azul', 'vermelho', 'roxo'] }
+    //Tipos de meteoros
+    'verde':    { vida: 1, cor: '#00ff00', pontos: 100, fragmenta: false, velocidade: 1 }, 
+    'azul':     { vida: 2, cor: '#0000ff', pontos: 200, fragmenta: false, velocidade: 0.7 }, 
+    'vermelho': { vida: 4, cor: '#ff0000', pontos: 500, fragmenta: false, velocidade: 0.3 }, 
+    'roxo':     { vida: 1, cor: '#800080', pontos: 300, fragmenta: true,  velocidade: 1 }  
 };
 
-//powersUp
+const CONFIG_NIVEIS = {
+    1: { maxMeteoros: 3,  spawnRate: 2000, velocidadeGlobal: .5, tipos: ['verde'] },
+    2: { maxMeteoros: 5,  spawnRate: 1800, velocidadeGlobal: .5, tipos: ['verde', 'azul'] },
+    3: { maxMeteoros: 7,  spawnRate: 1500, velocidadeGlobal: .5, tipos: ['verde', 'azul', 'roxo'] },
+    4: { maxMeteoros: 10, spawnRate: 1200, velocidadeGlobal:  1, tipos: ['azul', 'vermelho', 'roxo'] },
+    
+    // Configuração base para o infinito (Nível 5+)
+    'infinito': { maxMeteoros: 15, spawnRate: 800, velocidadeGlobal: 1 } 
+};
+
+//Porcentagem de aparecimento para Níveis 5+
+const CHANCES_INFINITO = {
+    'verde':    0.15, 
+    'azul':     0.35, 
+    'roxo':     0.30, 
+    'vermelho': 0.20  
+};
+
 const UPGRADES = {
     'laser':     { cor: '#ffffff', classeNave: 'nave-branca', tempo: 5000, chance: 0.10 },
     'cone':      { cor: '#0000ff', classeNave: 'nave-azul',   tempo: 7000, chance: 0.05 },
@@ -26,7 +36,6 @@ const UPGRADES = {
 /* ==========================================
    VARIÁVEIS GLOBAIS
    ========================================== */
-//criação das formas dos Asteroids
 const formasMeteoros = [ 
     "50,10 250,50 290,150 200,290 10,250", 
     "100,10 200,30 280,100 250,250 50,280 10,100", 
@@ -45,12 +54,12 @@ let jogoRodando = true;
 let loopId;
 let ultimoSpawn = 0;
 
-// CONTROLE DE TIRO E MOUSE (NOVO)
+// CONTROLE DE TIRO
 let modoTiroAtual = 'padrao';
 let timerPowerup = null;
-let timerAlerta = null; //Controla o tempo de piscar
-let mousePressionado = false; // Sabe se está segurando o clique
-let ultimoTiro = 0; // Para controlar a velocidade da metralhadora
+let timerAlerta = null;
+let mousePressionado = false;
+let ultimoTiro = 0;
 
 /* ==========================================
    FUNÇÕES AUXILIARES
@@ -59,7 +68,7 @@ function atualizarPlacar() {
     document.getElementById('placar-pontos').innerText = `PONTOS: ${pontuacao.toString().padStart(4, '0')}`;
     document.getElementById('placar-nivel').innerText = `NÍVEL: ${nivel}`;
 }
-//checagem do nivel e adicao de efeitos (apos aumentar nivel um efeito de brilho é ativado)
+
 function checarProgresso() {
     const pontosParaUpar = 1000;
     const novoNivel = Math.floor(pontuacao / pontosParaUpar) + 1;
@@ -71,7 +80,7 @@ function checarProgresso() {
         atualizarPlacar();
     }
 }
-//ativando a explosao dos Asteroids
+
 function criarExplosao(x, y, cor, escala = 1) {
     const numParticulas = 15 * escala;
     for (let i = 0; i < numParticulas; i++) {
@@ -95,9 +104,8 @@ function criarExplosao(x, y, cor, escala = 1) {
    ========================================== */
 function droparPowerup(x, y) {
     if (nivel < 2) return;
-    //Se já tiver um Up ativo, NÃO dropa outro!
-    //Se o modo de tiro não for o padrão (verde), cancela a função aqui mesmo.
     if (modoTiroAtual !== 'padrao') return; 
+
     const sorteio = Math.random();
     let tipoDrop = null;
 
@@ -131,32 +139,21 @@ function droparPowerup(x, y) {
 function ativarPowerup(tipo) {
     const dados = UPGRADES[tipo];
     const naveDiv = document.getElementById('nave');
-
-    // 1. Limpa timers anteriores (caso pegue um powerup em cima de outro)
     if (timerPowerup) clearTimeout(timerPowerup);
     if (timerAlerta) clearTimeout(timerAlerta);
 
-    // 2. Aplica o Power-up
     modoTiroAtual = tipo;
-    naveDiv.className = ''; // Remove classes antigas (incluindo o alerta se houver)
+    naveDiv.className = ''; 
     naveDiv.classList.add(dados.classeNave);
 
-    // 3. Define quando deve começar a piscar (1.5 segundos antes de acabar)
-    // Se o powerup durar menos de 1.5s, começa a piscar quase imediatamente
     const tempoParaAlerta = dados.tempo > 1500 ? dados.tempo - 1500 : 0;
-
     timerAlerta = setTimeout(() => {
-        // Adiciona a classe que faz piscar (definida no CSS)
         naveDiv.classList.add('alerta-acabando');
     }, tempoParaAlerta);
 
-    // 4. Define o fim do Power-up
     timerPowerup = setTimeout(() => {
         modoTiroAtual = 'padrao';
-        
-        // Remove todas as classes especiais (cor e pisca)
         naveDiv.className = 'nave-padrao'; 
-        
         timerPowerup = null;
         timerAlerta = null;
     }, dados.tempo);
@@ -171,10 +168,8 @@ function criarBala(x, y, anguloGraus, cor, tipoTiro) {
     laser.style.backgroundColor = cor;
     laser.style.boxShadow = `0 0 10px ${cor}`;
     document.body.appendChild(laser);
-
     const velocidade = 12;
     const radianos = (anguloGraus - 90) * (Math.PI / 180);
-
     lasersAtivos.push({
         elemento: laser, x: x, y: y,
         vx: Math.cos(radianos) * velocidade,
@@ -188,22 +183,100 @@ function atirar() {
     const cx = window.innerWidth / 2;
     const cy = window.innerHeight / 2;
 
-    if (modoTiroAtual === 'padrao') {
-        criarBala(cx, cy, anguloNave, '#ff0000', 'normal');
-    } 
-    else if (modoTiroAtual === 'laser') {
-        // Tiro rápido e branco (cadência controlada no loop)
-        criarBala(cx, cy, anguloNave, '#ffffff', 'normal');
-    }
+    if (modoTiroAtual === 'padrao') criarBala(cx, cy, anguloNave, '#ff0000', 'normal');
+    else if (modoTiroAtual === 'laser') criarBala(cx, cy, anguloNave, '#ffffff', 'normal');
     else if (modoTiroAtual === 'cone') {
         criarBala(cx, cy, anguloNave - 15, '#0000ff', 'normal');
         criarBala(cx, cy, anguloNave,      '#0000ff', 'normal');
         criarBala(cx, cy, anguloNave + 15, '#0000ff', 'normal');
     }
-    else if (modoTiroAtual === 'explosivo') {
-        criarBala(cx, cy, anguloNave, '#ff0000', 'nuclear');
-    }
+    else if (modoTiroAtual === 'explosivo') criarBala(cx, cy, anguloNave, '#ff0000', 'nuclear');
 }
+
+/* ==========================================
+   GERAÇÃO DE METEORO
+   ========================================== */
+function gerarMeteoro(tipoOpcional=null, xOpcional=null, yOpcional=null, tamanhoOpcional=null) {
+    
+    // 1. Identifica Configuração do Nível
+    const configNivel = CONFIG_NIVEIS[nivel] || CONFIG_NIVEIS['infinito'];
+    
+    // 2. SELEÇÃO DO TIPO DE METEORO
+    let chaveTipo;
+
+    if (tipoOpcional) {
+        // Se forçado (ex: fragmentação), usa o tipo pedido
+        chaveTipo = tipoOpcional;
+    } 
+    else if (nivel <= 4) {
+        // NÍVEIS 1 A 4: Usa a lista fixa antiga (aleatório simples)
+        const listaTipos = configNivel.tipos;
+        chaveTipo = listaTipos[Math.floor(Math.random() * listaTipos.length)];
+    } 
+    else {
+        // NÍVEL 5+ (INFINITO): Usa o SISTEMA DE PORCENTAGEM (Roleta)
+        const sorteio = Math.random(); // Ex: 0.45
+        let somaChance = 0;
+        
+        // Padrão caso algo falhe
+        chaveTipo = 'verde'; 
+
+        // Percorre as chances
+        for (const [tipo, chance] of Object.entries(CHANCES_INFINITO)) {
+            somaChance += chance;
+            if (sorteio < somaChance) {
+                chaveTipo = tipo;
+                break;
+            }
+        }
+    }
+    
+    const dadosTipo = TIPOS_METEOROS[chaveTipo];
+
+    // 3. CRIAÇÃO VISUAL
+    const divMeteoro = document.createElement("div");
+    divMeteoro.className = "meteoro";
+    const tamanho = tamanhoOpcional || Math.floor(Math.random() * 50) + 40; 
+    divMeteoro.style.width = tamanho + "px"; divMeteoro.style.height = tamanho + "px";
+
+    const svgNS = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(svgNS, "svg");
+    svg.setAttribute("width", "100%"); svg.setAttribute("height", "100%"); svg.setAttribute("viewBox", "0 0 300 300");
+    const polygon = document.createElementNS(svgNS, "polygon");
+    polygon.setAttribute("points", formasMeteoros[Math.floor(Math.random() * formasMeteoros.length)]);
+    polygon.setAttribute("class", "linha-neon");
+    polygon.style.stroke = dadosTipo.cor; 
+    svg.appendChild(polygon); divMeteoro.appendChild(svg);
+    document.getElementById("container-meteoros").appendChild(divMeteoro);
+
+    // 4. POSICIONAMENTO
+    let startX, startY;
+    if (xOpcional!==null) { startX=xOpcional; startY=yOpcional; }
+    else {
+        if(Math.random()>0.5){ startX=Math.random()>0.5?-60:window.innerWidth+60; startY=Math.random()*window.innerHeight; }
+        else{ startX=Math.random()*window.innerWidth; startY=Math.random()>0.5?-60:window.innerHeight+60; }
+    }
+
+    // 5. CÁLCULO DE MOVIMENTO (COM VELOCIDADE INDIVIDUAL)
+    const dx = (window.innerWidth/2) - startX;
+    const dy = (window.innerHeight/2) - startY;
+    let angulo = Math.atan2(dy, dx);
+    if(tipoOpcional) angulo += (Math.random()-0.5); // Variação para fragmentos
+
+    // FÓRMULA FINAL DE VELOCIDADE:
+    // (Aleatório Base) * (Velocidade do Nível Global) * (Velocidade Individual do Tipo)
+    const velocidadeFinal = (Math.random() * 1 + 1) * configNivel.velocidadeGlobal * dadosTipo.velocidade;
+
+    meteorosAtivos.push({
+        elemento: divMeteoro, polygon: polygon, tamanho: tamanho,
+        x: startX, y: startY, 
+        vx: Math.cos(angulo) * velocidadeFinal, 
+        vy: Math.sin(angulo) * velocidadeFinal,
+        vida: dadosTipo.vida, vidaMax: dadosTipo.vida, corOriginal: dadosTipo.cor,
+        tipo: chaveTipo, fragmenta: dadosTipo.fragmenta, pontos: dadosTipo.pontos
+    });
+}
+const generatingMeteoro = gerarMeteoro;
 
 /* ==========================================
    GAME LOOP
@@ -215,17 +288,10 @@ function gameLoop(timestamp) {
         return;
     }
 
-    // --- 1. METRALHADORA AUTOMÁTICA (AUTO-FIRE) ---
-    // Se o mouse estiver apertado E o modo for Laser
     if (mousePressionado && modoTiroAtual === 'laser') {
-        // 80ms = Super rápido (aprox 12 tiros por segundo)
-        if (timestamp - ultimoTiro > 80) { 
-            atirar();
-            ultimoTiro = timestamp;
-        }
+        if (timestamp - ultimoTiro > 80) { atirar(); ultimoTiro = timestamp; }
     }
 
-    // --- 2. SPAWN METEOROS ---
     const configAtual = CONFIG_NIVEIS[nivel] || CONFIG_NIVEIS['infinito'];
     if (timestamp - ultimoSpawn > configAtual.spawnRate) {
         if (meteorosAtivos.length < configAtual.maxMeteoros) {
@@ -238,7 +304,7 @@ function gameLoop(timestamp) {
     const naveY = window.innerHeight / 2;
     const raioNave = 20;
 
-    // --- 3. ATUALIZA METEOROS ---
+    // Atualiza Meteoros
     meteorosAtivos.forEach(obj => {
         obj.x += obj.vx; obj.y += obj.vy;
         if (obj.x > window.innerWidth + 100) obj.x = -100;
@@ -251,92 +317,61 @@ function gameLoop(timestamp) {
         if (dist < (obj.tamanho / 2) + raioNave) gameOver();
     });
 
-    // --- 4. ATUALIZA POWERUPS ---
+    // Atualiza Powerups
     for (let i = powerupsAtivos.length - 1; i >= 0; i--) {
         const p = powerupsAtivos[i];
         p.x += p.vx; p.y += p.vy;
         p.elemento.style.transform = `translate(${p.x}px, ${p.y}px)`;
         if (Math.hypot(p.x - naveX, p.y - naveY) < 30) {
             ativarPowerup(p.tipo);
-            p.elemento.remove();
-            powerupsAtivos.splice(i, 1);
+            p.elemento.remove(); powerupsAtivos.splice(i, 1);
         }
     }
 
-    // --- 5. ATUALIZA LASERS ---
+    // Atualiza Lasers
     for (let i = lasersAtivos.length - 1; i >= 0; i--) {
         const laser = lasersAtivos[i];
         let laserFoiDestruido = false; 
 
-        // 1. Move o laser
-        laser.x += laser.vx; 
-        laser.y += laser.vy;
+        laser.x += laser.vx; laser.y += laser.vy;
 
-        // 2. Verifica colisão
         for (let j = meteorosAtivos.length - 1; j >= 0; j--) {
             const meteoro = meteorosAtivos[j];
-
             if (laser.x >= meteoro.x && laser.x <= meteoro.x + meteoro.tamanho &&
                 laser.y >= meteoro.y && laser.y <= meteoro.y + meteoro.tamanho) {
                 
-                // ============================================================
-                // CORREÇÃO: REMOVE O LASER ANTES DE TUDO!
-                // Isso impede que ele cause dano duplo se o código abaixo der erro
-                // ============================================================
-                laser.elemento.remove();     
-                lasersAtivos.splice(i, 1);   
-                laserFoiDestruido = true;    
+                // REMOVE ANTES DE PROCESSAR
+                laser.elemento.remove(); lasersAtivos.splice(i, 1); laserFoiDestruido = true;    
 
-                // AGORA rodamos a lógica do jogo (Dano, Explosão, etc)
-                // Se der erro aqui, o laser já sumiu, então o jogo não quebra.
-
-                // A. Lógica Nuclear
                 if (laser.tipo === 'nuclear') {
                     criarOndaChoque(meteoro.x, meteoro.y);
                     destruirTudoAoRedor(meteoro.x, meteoro.y);
-                }
-                // B. Lógica Normal
-                else {
+                } else {
                     let dano = 1;
                     if (modoTiroAtual === 'laser') dano = 0.5;
-
                     meteoro.vida -= dano;
 
-                    // Proteção contra erro no Flash Visual (caso o meteoro suma muito rápido)
                     if (meteoro.polygon && meteoro.elemento) {
                         meteoro.polygon.style.stroke = '#ffffff';
-                        setTimeout(() => { 
-                            if(meteoro.elemento) meteoro.polygon.style.stroke = meteoro.corOriginal; 
-                        }, 100);
+                        setTimeout(() => { if(meteoro.elemento) meteoro.polygon.style.stroke = meteoro.corOriginal; }, 100);
                     }
 
                     if (meteoro.vida <= 0) {
                         if (meteoro.fragmenta) {
                             for(let k=0; k<3; k++) generatingMeteoro('verde', meteoro.x, meteoro.y, 30);
                         }
-                        
                         droparPowerup(meteoro.x, meteoro.y);
                         criarExplosao(meteoro.x + meteoro.tamanho/2, meteoro.y + meteoro.tamanho/2, meteoro.corOriginal);
-                        
-                        meteoro.elemento.remove();
-                        meteorosAtivos.splice(j, 1);
-                        
-                        pontuacao += meteoro.pontos;
-                        atualizarPlacar();
-                        checarProgresso();
+                        meteoro.elemento.remove(); meteorosAtivos.splice(j, 1);
+                        pontuacao += meteoro.pontos; atualizarPlacar(); checarProgresso();
                     }
                 }
-
-                // Para o loop de meteoros (pois este laser já era)
                 break; 
             }
         }
-
-        // 3. Se não bateu em nada, checa se saiu da tela
         if (!laserFoiDestruido) {
             if (laser.x < 0 || laser.x > window.innerWidth || laser.y < 0 || laser.y > window.innerHeight) {
-                laser.elemento.remove();
-                lasersAtivos.splice(i, 1);
+                laser.elemento.remove(); lasersAtivos.splice(i, 1);
             } else {
                 laser.elemento.style.transform = `translate(${laser.x}px, ${laser.y}px) rotate(${laser.angulo}deg)`;
             }
@@ -347,7 +382,7 @@ function gameLoop(timestamp) {
     loopId = requestAnimationFrame(gameLoop);
 }
 
-// Funções de Efeitos
+// Funções de Efeitos Globais
 function criarOndaChoque(x, y) {
     const onda = document.createElement('div');
     onda.className = 'onda-choque';
@@ -364,70 +399,18 @@ function criarOndaChoque(x, y) {
 }
 
 function destruirTudoAoRedor(origemX, origemY) {
-    // Percorre de trás para frente para evitar erros ao remover
     for (let j = meteorosAtivos.length - 1; j >= 0; j--) {
         const m = meteorosAtivos[j];
-        
-        // Calcula distância da explosão
-        const dist = Math.hypot(m.x - origemX, m.y - origemY);
-        
-        // Se estiver dentro do raio da explosão (300px)
-        if (dist < 300) { 
-            // 1. Efeitos Visuais
+        if (Math.hypot(m.x - origemX, m.y - origemY) < 300) { 
             criarExplosao(m.x, m.y, m.corOriginal);
-            
-            // 2. Pontos e Drops
             pontuacao += m.pontos;
-            droparPowerup(m.x, m.y); // Chance de dropar item extra na explosão!
-
-            // 3. Remove do HTML e do Array
-            m.elemento.remove();
-            meteorosAtivos.splice(j, 1);
-            
-            // 4. Atualiza progresso (para subir de nível na explosão)
+            droparPowerup(m.x, m.y);
+            m.elemento.remove(); meteorosAtivos.splice(j, 1);
             checarProgresso();
         }
     }
     atualizarPlacar();
 }
-
-// Geração de Meteoro (Mantendo compatibilidade)
-function gerarMeteoro(tipoOpcional=null, xOpcional=null, yOpcional=null, tamanhoOpcional=null) {
-    const configNivel = CONFIG_NIVEIS[nivel] || CONFIG_NIVEIS['infinito'];
-    let chaveTipo = tipoOpcional || configNivel.tipos[Math.floor(Math.random() * configNivel.tipos.length)];
-    const dadosTipo = TIPOS_METEOROS[chaveTipo];
-    const divMeteoro = document.createElement("div");
-    divMeteoro.className = "meteoro";
-    const tamanho = tamanhoOpcional || Math.floor(Math.random() * 50) + 40; 
-    divMeteoro.style.width = tamanho + "px"; divMeteoro.style.height = tamanho + "px";
-    const svgNS = "http://www.w3.org/2000/svg";
-    const svg = document.createElementNS(svgNS, "svg");
-    svg.setAttribute("width", "100%"); svg.setAttribute("height", "100%"); svg.setAttribute("viewBox", "0 0 300 300");
-    const polygon = document.createElementNS(svgNS, "polygon");
-    polygon.setAttribute("points", formasMeteoros[Math.floor(Math.random() * formasMeteoros.length)]);
-    polygon.setAttribute("class", "linha-neon");
-    polygon.style.stroke = dadosTipo.cor; 
-    svg.appendChild(polygon); divMeteoro.appendChild(svg);
-    document.getElementById("container-meteoros").appendChild(divMeteoro);
-    let startX, startY;
-    if (xOpcional!==null) { startX=xOpcional; startY=yOpcional; }
-    else {
-        if(Math.random()>0.5){ startX=Math.random()>0.5?-60:window.innerWidth+60; startY=Math.random()*window.innerHeight; }
-        else{ startX=Math.random()*window.innerWidth; startY=Math.random()>0.5?-60:window.innerHeight+60; }
-    }
-    const dx = (window.innerWidth/2) - startX;
-    const dy = (window.innerHeight/2) - startY;
-    let angulo = Math.atan2(dy, dx);
-    if(tipoOpcional) angulo += (Math.random()-0.5);
-    const vel = (Math.random()*1.5+1)*configNivel.velocidade;
-    meteorosAtivos.push({
-        elemento: divMeteoro, polygon: polygon, tamanho: tamanho,
-        x: startX, y: startY, vx: Math.cos(angulo)*vel, vy: Math.sin(angulo)*vel,
-        vida: dadosTipo.vida, vidaMax: dadosTipo.vida, corOriginal: dadosTipo.cor,
-        tipo: chaveTipo, fragmenta: dadosTipo.fragmenta, pontos: dadosTipo.pontos
-    });
-}
-const generatingMeteoro = gerarMeteoro;
 
 function gameOver() {
     jogoRodando = false; cancelAnimationFrame(loopId);
@@ -438,25 +421,18 @@ function gameOver() {
 }
 
 function reiniciarJogo() {
-    //reset de variáveis pontuacao, nivel, etc
     pontuacao = 0; nivel = 1; ultimoSpawn = 0; jogoRodando = true; modoTiroAtual = 'padrao';
     mousePressionado = false;
-    
-    // LIMPEZA DOS TIMERS DE POWERUP
     if (timerPowerup) clearTimeout(timerPowerup);
-    if (timerAlerta) clearTimeout(timerAlerta); // time alert Up
-    timerPowerup = null;
-    timerAlerta = null;
-    
+    if (timerAlerta) clearTimeout(timerAlerta);
+    timerPowerup = null; timerAlerta = null;
     atualizarPlacar();
     document.getElementById('nave').style.opacity = '1';
     document.getElementById('nave').className = 'nave-padrao';
-    
     meteorosAtivos.forEach(m => m.elemento.remove());
     lasersAtivos.forEach(l => l.elemento.remove());
     particulasAtivas.forEach(p => p.elemento.remove());
     powerupsAtivos.forEach(p => p.elemento.remove());
-    
     meteorosAtivos = []; lasersAtivos = []; particulasAtivas = []; powerupsAtivos = [];
     document.getElementById('tela-gameover').classList.add('d-none');
     gameLoop(0);
@@ -471,9 +447,6 @@ function atualizarParticulas() {
     }
 }
 
-/* ==========================================
-   EVENTOS
-   ========================================== */
 document.addEventListener('mousemove', (e) => {
     if(!jogoRodando) return;
     const dx = e.clientX - (window.innerWidth / 2);
@@ -482,22 +455,13 @@ document.addEventListener('mousemove', (e) => {
     document.getElementById('nave').style.transform = `translate(-50%, -50%) rotate(${anguloNave}deg)`;
 });
 
-// EVENTOS DE MOUSE ATUALIZADOS PARA AUTO-FIRE
 document.addEventListener('mousedown', (e) => {
     if(e.button === 0) {
         mousePressionado = true;
-        // Se NÃO for laser, atira uma vez (tiro normal, cone ou explosivo)
-        if (modoTiroAtual !== 'laser') {
-            atirar();
-        }
-        // Se FOR laser, o gameLoop vai cuidar de atirar
+        if (modoTiroAtual !== 'laser') atirar();
     }
 });
+document.addEventListener('mouseup', () => { mousePressionado = false; });
 
-document.addEventListener('mouseup', () => {
-    mousePressionado = false;
-});
-
-// INÍCIO
 atualizarPlacar();
 requestAnimationFrame(gameLoop);
