@@ -266,67 +266,74 @@ function gameLoop(timestamp) {
     // --- 5. ATUALIZA LASERS ---
     for (let i = lasersAtivos.length - 1; i >= 0; i--) {
         const laser = lasersAtivos[i];
-        let laserColidiu = false;
-        laser.x += laser.vx; laser.y += laser.vy;
+        let laserFoiDestruido = false; 
 
-        // Verifica colisão com cada meteoro
+        // 1. Move o laser
+        laser.x += laser.vx; 
+        laser.y += laser.vy;
+
+        // 2. Verifica colisão
         for (let j = meteorosAtivos.length - 1; j >= 0; j--) {
             const meteoro = meteorosAtivos[j];
 
             if (laser.x >= meteoro.x && laser.x <= meteoro.x + meteoro.tamanho &&
                 laser.y >= meteoro.y && laser.y <= meteoro.y + meteoro.tamanho) {
                 
-                // --- CAMINHO 1: TIRO NUCLEAR (CORREÇÃO DO BUG) ---
+                // ============================================================
+                // CORREÇÃO: REMOVE O LASER ANTES DE TUDO!
+                // Isso impede que ele cause dano duplo se o código abaixo der erro
+                // ============================================================
+                laser.elemento.remove();     
+                lasersAtivos.splice(i, 1);   
+                laserFoiDestruido = true;    
+
+                // AGORA rodamos a lógica do jogo (Dano, Explosão, etc)
+                // Se der erro aqui, o laser já sumiu, então o jogo não quebra.
+
+                // A. Lógica Nuclear
                 if (laser.tipo === 'nuclear') {
-                    // Cria a onda visual
                     criarOndaChoque(meteoro.x, meteoro.y);
-                    
-                    // Destrói tudo (incluindo este meteoro que foi atingido)
                     destruirTudoAoRedor(meteoro.x, meteoro.y);
-                    
-                    // Remove o laser e PARA o loop deste laser imediatamente
-                    // Isso impede que o código abaixo tente acessar um meteoro que já foi deletado
-                    laser.elemento.remove();
-                    lasersAtivos.splice(i, 1);
-                    laserColidiu = true; // Marca como resolvido
-                    break; 
                 }
+                // B. Lógica Normal
+                else {
+                    let dano = 1;
+                    if (modoTiroAtual === 'laser') dano = 0.5;
 
-                // --- CAMINHO 2: TIRO NORMAL (Laser Branco/Azul/Verde Padrão) ---
-                let dano = 1;
-                if (modoTiroAtual === 'laser') dano = 0.5;
+                    meteoro.vida -= dano;
 
-                meteoro.vida -= dano;
-                laserColidiu = true;
-
-                // Efeito visual de dano (Flash)
-                meteoro.polygon.style.stroke = '#ffffff';
-                setTimeout(() => { if(meteoro.elemento) meteoro.polygon.style.stroke = meteoro.corOriginal; }, 100);
-
-                // Se o meteoro morreu
-                if (meteoro.vida <= 0) {
-                    if (meteoro.fragmenta) {
-                        for(let k=0; k<3; k++) generatingMeteoro('verde', meteoro.x, meteoro.y, 30);
+                    // Proteção contra erro no Flash Visual (caso o meteoro suma muito rápido)
+                    if (meteoro.polygon && meteoro.elemento) {
+                        meteoro.polygon.style.stroke = '#ffffff';
+                        setTimeout(() => { 
+                            if(meteoro.elemento) meteoro.polygon.style.stroke = meteoro.corOriginal; 
+                        }, 100);
                     }
-                    
-                    droparPowerup(meteoro.x, meteoro.y);
-                    criarExplosao(meteoro.x + meteoro.tamanho/2, meteoro.y + meteoro.tamanho/2, meteoro.corOriginal);
-                    
-                    meteoro.elemento.remove();
-                    meteorosAtivos.splice(j, 1);
-                    
-                    pontuacao += meteoro.pontos;
-                    atualizarPlacar();
-                    checarProgresso();
+
+                    if (meteoro.vida <= 0) {
+                        if (meteoro.fragmenta) {
+                            for(let k=0; k<3; k++) generatingMeteoro('verde', meteoro.x, meteoro.y, 30);
+                        }
+                        
+                        droparPowerup(meteoro.x, meteoro.y);
+                        criarExplosao(meteoro.x + meteoro.tamanho/2, meteoro.y + meteoro.tamanho/2, meteoro.corOriginal);
+                        
+                        meteoro.elemento.remove();
+                        meteorosAtivos.splice(j, 1);
+                        
+                        pontuacao += meteoro.pontos;
+                        atualizarPlacar();
+                        checarProgresso();
+                    }
                 }
-                
-                // Se bateu (e não era nuclear), o laser some e paramos de verificar outros meteoros para este laser
+
+                // Para o loop de meteoros (pois este laser já era)
                 break; 
             }
         }
 
-        // Se o laser não colidiu (e não foi removido pela lógica nuclear), verifica se saiu da tela
-        if (!laserColidiu) {
+        // 3. Se não bateu em nada, checa se saiu da tela
+        if (!laserFoiDestruido) {
             if (laser.x < 0 || laser.x > window.innerWidth || laser.y < 0 || laser.y > window.innerHeight) {
                 laser.elemento.remove();
                 lasersAtivos.splice(i, 1);
