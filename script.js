@@ -513,23 +513,70 @@ function atualizarParticulas() {
         else { p.elemento.style.transform = `translate(${p.x}px, ${p.y}px)`; p.elemento.style.opacity = p.vida; }
     }
 }
+/* ==========================================
+   EVENTOS (COMPATÍVEL COM CELULAR E PC)
+   ========================================== */
 
-document.addEventListener('mousemove', (e) => {
+// 1. MOVIMENTO (Mouse e Dedo)
+function atualizarMira(clientX, clientY) {
     if(!jogoRodando) return;
-    const dx = e.clientX - (window.innerWidth / 2);
-    const dy = e.clientY - (window.innerHeight / 2);
+    const dx = clientX - (window.innerWidth / 2);
+    const dy = clientY - (window.innerHeight / 2);
     anguloNave = (Math.atan2(dy, dx) * (180 / Math.PI)) + 90;
     document.getElementById('nave').style.transform = `translate(-50%, -50%) rotate(${anguloNave}deg)`;
+}
+
+document.addEventListener('mousemove', (e) => {
+    atualizarMira(e.clientX, e.clientY);
 });
 
+document.addEventListener('touchmove', (e) => {
+    // Evita arrastar a tela (scroll)
+    e.preventDefault(); 
+    // Pega o primeiro dedo que tocou na tela
+    const toque = e.touches[0];
+    atualizarMira(toque.clientX, toque.clientY);
+}, { passive: false });
+
+
+// 2. TIRO / AUTO-FIRE (Mouse)
 document.addEventListener('mousedown', (e) => {
     if(e.button === 0) {
         mousePressionado = true;
+        // Se NÃO for laser, atira uma vez imediatamente
         if (modoTiroAtual !== 'laser') atirar();
     }
 });
-document.addEventListener('mouseup', () => { mousePressionado = false; });
 
+document.addEventListener('mouseup', () => {
+    mousePressionado = false;
+});
+
+
+// 3. TIRO / AUTO-FIRE (Celular - Touch)
+// touchstart = dedo encostou na tela (igual mousedown)
+document.addEventListener('touchstart', (e) => {
+    if(!jogoRodando) return;
+    
+    // Evita comportamentos padrão (zoom, scroll)
+    if(e.cancelable) e.preventDefault(); 
+    
+    mousePressionado = true;
+    
+    // Atualiza mira para onde tocou antes de atirar
+    const toque = e.touches[0];
+    atualizarMira(toque.clientX, toque.clientY);
+
+    // Se NÃO for laser, atira uma vez
+    if (modoTiroAtual !== 'laser') atirar();
+}, { passive: false });
+
+// touchend = dedo levantou da tela (igual mouseup)
+document.addEventListener('touchend', (e) => {
+    mousePressionado = false;
+});
+
+// INÍCIO
 atualizarPlacar();
 requestAnimationFrame(gameLoop);
 
