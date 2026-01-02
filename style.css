@@ -5,6 +5,11 @@ body {
     height: 100vh;
     font-family: 'Courier New', Courier, monospace; /* Fonte estilo máquina de escrever */
     user-select: none; /* Impede selecionar texto ao clicar muito rápido */
+
+    touch-action: none;           /* Desabilita gestos de pinça e duplo toque */
+    overscroll-behavior: none;    /* Evita aquele efeito de "elástico" ao puxar a tela */
+    -webkit-user-select: none;    /* Impede selecionar texto no iPhone */
+    user-select: none;            /* Impede selecionar texto no Android */
 }
 
 /* Placar Estilo Retro */

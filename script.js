@@ -532,3 +532,7 @@ document.addEventListener('mouseup', () => { mousePressionado = false; });
 
 atualizarPlacar();
 requestAnimationFrame(gameLoop);
+
+document.addEventListener('dblclick', function(event) {
+    event.preventDefault();
+}, { passive: false });
